@@ -44,6 +44,8 @@
 #define MODEL_ID_START_BUTTON 5
 #define MODEL_START_BUTTON_VERT_COUNT 3
 
+#define PERSHIT_FPI 3.141592654f
+
 using namespace wirender;
 using namespace ps_window;
 using namespace sgjk;
@@ -473,11 +475,11 @@ struct object {
 };
 
 float radians_differens(const float radian1, const float radian2) {
-    const float diff = fmod(radian1 - radian2, 2.0f * 3.141592654f);
-    if (diff < -3.141592654f) {
-        return diff + (2.0f * 3.141592654f);
-    } else if (diff > 3.141592654f) {
-        return diff - (2.0f * 3.141592654f);
+    const float diff = fmod(radian1 - radian2, 2.0f * PERSHIT_FPI);
+    if (diff < -PERSHIT_FPI) {
+        return diff + (2.0f * PERSHIT_FPI);
+    } else if (diff > PERSHIT_FPI) {
+        return diff - (2.0f * PERSHIT_FPI);
     }
     return diff;
 }
@@ -712,7 +714,7 @@ struct Game {
     // draw objects without interpolation, but still need a time step for camera moves
     void draw_objects(float ts) {
         clear_bacth();
-        
+
         camera_info& cameraInfo = sceneState.cameraInfo;
 
         (*reinterpret_cast<camera_info*>(objectsShader.get_uniform_buffer_memory_on_binding(0))) = cameraInfo;
@@ -903,7 +905,7 @@ struct Game {
                     continue;
 
                 while (i->timer1 > i->timerDur1) {
-                    const float radians = ((float)rand() / (float)RAND_MAX) * 3.141592654f;
+                    const float radians = ((float)rand() / (float)RAND_MAX) * (PERSHIT_FPI * 2.0f);
                     const vec2 position = vec2(cos(radians), sin(radians)) + gameObjects[playerIndex].transform.get_position();
 
                     int randResult = rand() % 3;
