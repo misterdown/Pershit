@@ -50,6 +50,7 @@ using namespace wirender;
 using namespace ps_window;
 using namespace sgjk;
 using namespace glm;
+using std::ios;
 using glm::sin;
 using glm::cos;
 using glm::abs;
@@ -390,10 +391,10 @@ struct input_state {
 };
 
 vector<unsigned char> readBinary(const std::string& path) {
-    std::fstream file(path, std::ios_base::binary | std::ios_base::out | std::ios_base::in);
+    std::fstream file(path, ios::binary | ios::out | ios::in);
     assert(file.good());
-    const size_t fileSize = file.seekg(0, std::ios_base::seekdir::_S_end).tellg();
-    file.seekg(std::ios_base::seekdir::_S_beg);
+    const size_t fileSize = file.seekg(0, ios::end).tellg();
+    file.seekg(ios::beg);
 
     vector<unsigned char> result(fileSize);
     file.read((char*)result.data(), fileSize);
