@@ -652,6 +652,7 @@ namespace sgjk  {
                 wrapped_ = other.wrapped_->clone();
                 SGJK_ASSERT(wrapped_ != nullptr);
             }
+
             return *this;
         }
         transform_wrapper_anydt& operator=(transform_wrapper_anydt&& other) {
@@ -659,6 +660,7 @@ namespace sgjk  {
                 delete wrapped_;
             wrapped_ = other.wrapped_;
             other.wrapped_ = nullptr;
+
             return *this;
         }
         
@@ -684,6 +686,14 @@ namespace sgjk  {
         public:
         empty_transform() {
 
+        }
+
+        public:
+        empty_transform& operator=(const empty_transform& other) noexcept {
+            return *this;
+        }
+        empty_transform& operator=(empty_transform&& other) noexcept {
+            return *this;
         }
 
         public:
@@ -723,6 +733,22 @@ namespace sgjk  {
         }
         transform_2dt(transform_2dt&& other) : position_(SGJK_MOVE(other.position_)), scale_(SGJK_MOVE(other.scale_)), radians_(SGJK_MOVE(other.radians_)) {
 
+        }
+
+        public:
+        transform_2dt& operator=(const transform_2dt& other) noexcept {
+            position_ = other.position_;
+            scale_ = other.scale_;
+            radians_ = other.radians_;
+
+            return *this;
+        }
+        transform_2dt& operator=(transform_2dt&& other) noexcept {
+            position_ = SGJK_MOVE(other.position_);
+            scale_ =    SGJK_MOVE(other.scale_);
+            radians_ =  SGJK_MOVE(other.radians_);
+
+            return *this;
         }
 
         public:
@@ -801,6 +827,22 @@ namespace sgjk  {
         }
         transform_3dt(transform_3dt&& other) : position_(SGJK_MOVE(other.position_)), scale_(SGJK_MOVE(other.scale_)), radians_(SGJK_MOVE(other.radians_)) {
 
+        }
+
+        public:
+        transform_3dt& operator=(const transform_3dt& other) noexcept {
+            position_ = other.position_;
+            scale_ = other.scale_;
+            radians_ = other.radians_;
+            
+            return *this;
+        }
+        transform_3dt& operator=(transform_3dt&& other) noexcept {
+            position_ = SGJK_MOVE(other.position_);
+            scale_ =    SGJK_MOVE(other.scale_);
+            radians_ =  SGJK_MOVE(other.radians_);
+
+            return *this;
         }
 
         public:

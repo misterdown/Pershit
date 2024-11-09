@@ -20,8 +20,9 @@
 #define PLAYER_SPEED 2.0f
 #define DEFAULT_FRITCTION 1.0f
 #define SPAWNED_OBJECTS_LIMIT 129
-#define TICK_TIME_STEP 0.015625f
-#define DRAW_TIME_STEP 0.0078125f
+#define TICK_TIME_STEP (1.0 / 32.0)// 0.015625f
+#define FRAMES_PER_TICK 64
+#define FRAME_TIME_STEP (TICK_TIME_STEP / (float)FRAMES_PER_TICK)
 
 #define MODEL_ID_PLAYER 0
 #define MODEL_PLAYER_VERT_COUNT 9
@@ -328,6 +329,7 @@ const static polygon_collider_2d collidersForModels[] {
 struct input_state {
     private:
     static constexpr uint32_t keysMax = UINT8_MAX + 1;
+    int scrollDelta = 0;
     bool prevPresseButtons[keysMax] {};
     bool currentPresseButtons[keysMax] {};
     bool rmbButton[2] {};
@@ -339,6 +341,7 @@ struct input_state {
             prevPresseButtons[i] = currentPresseButtons[i];
         rmbButton[0] = rmbButton[1];
         lmbButton[0] = lmbButton[1];
+        scrollDelta = 0;
     }
     void key_up(uint32_t key) noexcept {
         currentPresseButtons[key] = false;
@@ -357,6 +360,12 @@ struct input_state {
     }
     void left_mb_up() {
         lmbButton[1] = false;
+    }
+    void scroll_up() {
+        ++scrollDelta;
+    }
+    void scroll_down() {
+        --scrollDelta;
     }
 
     public:
@@ -386,6 +395,9 @@ struct input_state {
     }
     [[nodiscard]] bool is_rmb_just_released() const {
         return !rmbButton[1] && rmbButton[0];
+    }
+    [[nodiscard]] int get_scroll_delta() const {
+        return scrollDelta;
     }
 
 };
@@ -419,6 +431,7 @@ vector<unsigned char> readBinary(const std::string& path) {
 enum object_type {
     OBJECT_TYPE_MENU_BUTTON_START,
     OBJECT_TYPE_PLAYER,
+    OBJECT_TYPE_ARROW,
     OBJECT_TYPE_ENEMY_SPAWNER,
     OBJECT_TYPE_PLAYER_BULLET,
     OBJECT_TYPE_PLAYER_DEATH_WALL,
@@ -454,7 +467,7 @@ struct object {
     uint32_t vertecesInUse;
     transform2d transform;
     vec2 velocity;
-    vec2 penetration;
+    float rotationSpeed;
     float timer1;
     float timerDur1;
 
@@ -468,7 +481,7 @@ struct object {
         vertecesInUse(0),
         transform(transform),
         velocity(velocity),
-        penetration(0.0f),
+        rotationSpeed(0.0f),
         timer1(0.0f),
         timerDur1(0.0f) {
 
@@ -492,8 +505,6 @@ struct Game {
     };
     struct player_action_state {
         long_player_action actionType;
-        vec2 arrowDirection;
-        float arrowRadians;
     };
     enum scene_type {
         SCENE_TYPE_MENU,
@@ -576,6 +587,7 @@ struct Game {
         window.userKeyUpCallback = &keyUpCallback;
         window.userLmbDownCallback = &lmbDown;
         window.userLmbUpCallback = &lmbUp;
+        window.userMouseWheelCallback = &mouseWheel;
 
         render. start_record().
 
@@ -645,32 +657,37 @@ struct Game {
     void run() {
         window.show();
         auto tickTimerStart = std::chrono::steady_clock::now();
-        auto drawTimerStart = std::chrono::steady_clock::now();
-
+        auto frameTimerStart = std::chrono::steady_clock::now();
         auto sStart = std::chrono::steady_clock::now();
 
         initialize_scene_state_menu();
 
         double max = 0.0f;
+        int currentFrame = 0;
+
         while (window.is_open()) {
             const auto fStart = std::chrono::steady_clock::now();
-
+            
             const double tickElapsed = (double)(std::chrono::steady_clock::now() - tickTimerStart).count() / (double)std::chrono::steady_clock::period::den;
-            const double drawElapsed = (double)(std::chrono::steady_clock::now() - drawTimerStart).count() / (double)std::chrono::steady_clock::period::den;
+            const double frameElapsed = (double)(std::chrono::steady_clock::now() - frameTimerStart).count() / (double)std::chrono::steady_clock::period::den;
             const double sElapsed = (double)(std::chrono::steady_clock::now() - sStart).count() / (double)std::chrono::steady_clock::period::den;
-            if (tickElapsed > TICK_TIME_STEP) {
+            const bool ticked = tickElapsed > TICK_TIME_STEP;
+            if (ticked) {
                 tickTimerStart = std::chrono::steady_clock::now();
+                currentFrame = 0;
+                tick();
                 input.update();
-                window.pool_events();
-                
-                tick(TICK_TIME_STEP);
-                
             }
-            if (drawElapsed > DRAW_TIME_STEP) {
-                drawTimerStart = std::chrono::steady_clock::now();
-                draw_objects(DRAW_TIME_STEP);
+            if (frameElapsed > FRAME_TIME_STEP) {
+                frameTimerStart = std::chrono::steady_clock::now();
+                draw_objects(currentFrame);
                 render.execute();
+                ++currentFrame;
             }
+            
+            window.pool_events();
+            
+
             if (sElapsed > 1.0) {
                 sStart = std::chrono::steady_clock::now();
                 // std::cout << "worst sdelta: " << max << " / worst fps: " << 1.0 / max << "\n";
@@ -683,37 +700,40 @@ struct Game {
     }
 
     private:
-    void tick(float ts) {
+    void tick() {
         if (sceneState.type == SCENE_TYPE_BATTLE) {
             float& turnDuration = sceneState.turnDuration;
             float& totalInTurnElapsed = sceneState.totalInTurnElapsed;
             if (turnDuration <= 0.0) {
                 turnDuration = try_wait_player_turn();
             } else {
-                proccess_actions(ts);
+                proccess_actions();
+                const float ts = TICK_TIME_STEP;
                 turnDuration -= ts;
                 totalInTurnElapsed += ts;
             }
         } else if (sceneState.type == SCENE_TYPE_MENU) {
             const auto& gameObjects = sceneState.gameObjects;
             if (input.is_lmb_just_pressed()) {
-                const transform2d clickTransform(get_cursor_position_in_game_world(), 0.0f, vec2(1.0f / 50.0f));
+                const transform2d cursorTransform(get_cursor_position_in_game_world(), 0.0f, vec2(1.0f / 64.0f));
                 collision_detecter_2d detecter;
 
                 for (const auto& i : gameObjects) {
                     if (i.type == OBJECT_TYPE_MENU_BUTTON_START) {
-                        if (detecter.is_collide(collidersForModels[MODEL_ID_START_BUTTON], collidersForModels[MODEL_ID_START_BUTTON], 16, clickTransform, i.transform)) {
+                        if (detecter.is_collide(collidersForModels[MODEL_ID_START_BUTTON], collidersForModels[MODEL_ID_START_BUTTON], 16, cursorTransform, i.transform)) {
                             clear_scene();
                             initialize_scene_state_battle();
-                        }
+                        } // 1
+                    } // 2
+                } // 3
+            } // 4
+        } // five
+    } // sex
+    // a lot
 
-                    }
-                }
-            }
-        }
-    }
-    // draw objects without interpolation, but still need a time step for camera moves
-    void draw_objects(float ts) {
+    void draw_objects(int frameOnTick) {
+        const float ts = FRAME_TIME_STEP;
+
         clear_bacth();
 
         camera_info& cameraInfo = sceneState.cameraInfo;
@@ -722,20 +742,26 @@ struct Game {
         (*reinterpret_cast<camera_info*>(cellBoardShader.get_uniform_buffer_memory_on_binding(0))) = cameraInfo;
         (*reinterpret_cast<vec2*>(objectsShader.get_uniform_buffer_memory_on_binding(1))) = get_cursor_position_in_game_world();
 
-        const auto& gameObjects = sceneState.gameObjects;
+        auto& gameObjects = sceneState.gameObjects;
 
         if (sceneState.type == SCENE_TYPE_BATTLE) {
-            cameraInfo.scale -= ts * (float)window.get_mouse_wheel_scroll_delta(); 
+            cameraInfo.scale -= ts * (float)input.get_scroll_delta(); 
             cameraInfo.scale = clamp(cameraInfo.scale, vec2(0.5f), vec2(2.0f));
             print_number_in_world((int)(sceneState.totalInTurnElapsed * 1000), vec2(-0.95f, -0.85f) * cameraInfo.scale + cameraInfo.position, vec2(0.05f) * cameraInfo.scale);
         }
 
-        for (const auto& i : gameObjects) {
+        for (auto& i : gameObjects) {
             const transform2d& currentTransform = i.transform;
+            transform2d modelTransform = i.transform;
+            if ((sceneState.type == SCENE_TYPE_BATTLE) && (sceneState.turnDuration > 0.0f)) {
+                modelTransform.move(i.velocity * ts * (float)frameOnTick);
+                modelTransform.rotate(i.rotationSpeed * ts * (float)frameOnTick);
+            }
+
             const object_type objType = i.type;
 
             if (objType == OBJECT_TYPE_PLAYER) {
-                const vec2 posDiff = currentTransform.get_position() - cameraInfo.position;
+                const vec2 posDiff = modelTransform.get_position() - cameraInfo.position;
                 const float distance = length(posDiff);
                 if (distance > 0.1414) {
                     if (distance < 1.0) {
@@ -747,14 +773,17 @@ struct Game {
 
                 if ((sceneState.type == SCENE_TYPE_BATTLE) && (sceneState.turnDuration <= 0.0f)) {
                     const player_action_state& playerActionState = sceneState.playerActionState;
-                    transform2d arrowTransform(currentTransform.get_position(), playerActionState.arrowRadians);
+
+                    const vec2 cursorRelPlayer = get_cursor_position_in_game_world() - modelTransform.get_position();
+
+                    const transform2d arrowTransform(modelTransform.get_position(), atan2(cursorRelPlayer.y, cursorRelPlayer.x));
                     put_on_batch(MODEL_ID_ARROW, MODEL_ARROW_VERT_COUNT, arrowTransform);
                 }
+
             }
-            put_on_batch(get_model_id(objType), get_model_verteces_count(objType), currentTransform);
+            
+            put_on_batch(get_model_id(objType), get_model_verteces_count(objType), modelTransform);
         }
-
-
     }
     vec2 murmuration(const object& currentObject) const {
         constexpr float neighborDistance = 0.2f;
@@ -806,9 +835,6 @@ struct Game {
                 const vec2 cursorRelPlayer = cursorInWorld - playerTrasform.get_position();
                 const vec2 cursorRelPlayerDirection = normalized(cursorRelPlayer);
                 const float arrowRadians = atan2(cursorRelPlayer.y, cursorRelPlayer.x);
-
-                playerActionState.arrowDirection = cursorRelPlayerDirection;
-                playerActionState.arrowRadians = arrowRadians;
                 
                 if (input.is_just_pressed(KEY_CODES_SPACE)) {
                     return 0.5f;
@@ -817,6 +843,7 @@ struct Game {
                     playerActionState.actionType = PLAYER_ACTION_WAIT;
                     playerTrasform.get_rotation() = arrowRadians;
                     i.velocity = cursorRelPlayerDirection * 1.75f;
+
                     return 0.75f;
 
                 } else if (input.is_just_pressed(KEY_CODES_2)) {
@@ -830,8 +857,9 @@ struct Game {
                     i.velocity -= recoil;
 
                     add_object(object(OBJECT_TYPE_PLAYER_BULLET, std::move(bulletTransform), cursorRelPlayerDirection * 2.0f)); // костыли не нужны, если объекты будут перераспределены, то это, тут конкретно, ни на что не повлияет 
-                    return 0.5f;
 
+                    return 0.5f;
+                
                 } else if (input.is_just_pressed(KEY_CODES_3)) {
                     playerTrasform.get_rotation() = arrowRadians;
 
@@ -843,11 +871,13 @@ struct Game {
                     i.velocity -= recoil;
 
                     add_object(object(OBJECT_TYPE_PLAYER_DEATH_WALL, std::move(bulletTransform), cursorRelPlayerDirection * 2.0f)); // костыли не нужны, если объекты будут перераспределены, то это, тут конкретно, ни на что не повлияет 
+
                     return 1.25f;
 
                 } else if (input.is_just_pressed(KEY_CODES_4)) {
                     playerActionState.actionType = PLAYER_ACTION_WAIT;
                     playerTrasform.get_position() = cursorInWorld;
+ 
                     return length(cursorRelPlayer) * 0.5f + 0.5f;
 
                 }
@@ -857,7 +887,9 @@ struct Game {
         return 0.0f;
     }
     // update every object
-    void proccess_actions(float ts) {
+    void proccess_actions() {
+        const float ts = TICK_TIME_STEP;
+
         auto& gameObjects = sceneState.gameObjects;
 
         {
@@ -898,6 +930,7 @@ struct Game {
 
             transform2d& currentTransform = i->transform;
 
+            float newRadians = currentTransform.get_rotation();
             if (i->type == OBJECT_TYPE_PLAYER) {
                 i->velocity /= 1.0f + ts * 2.0f;
 
@@ -950,7 +983,7 @@ struct Game {
                     (length(murmur) == 0.0f ? vec2(0.0f) : normalized(murmur))
                 ) * 0.33f;
                 i->velocity += direction * 1.75f * ts;
-                currentTransform.get_rotation() = atan2(i->velocity.y, i->velocity.x);
+                i->rotationSpeed = radians_differens(atan2(i->velocity.y, i->velocity.x), currentTransform.get_rotation()) / ts;
                 i->velocity /= 1.0f + ts;
                 i->timer1 += ts;
 
@@ -960,13 +993,22 @@ struct Game {
                     i->velocity += direction * 3.0f;
                     i->timer1 = 0.0f;
                 }
-                currentTransform.get_rotation() = atan2(i->velocity.y, i->velocity.x);
+                newRadians = atan2(i->velocity.y, i->velocity.x);
                 i->velocity /= 1.0f + ts;
                 i->timer1 += ts;
             }
             currentTransform.move(i->velocity * ts);
+            if (currentTransform.get_rotation() == newRadians) {
+                currentTransform.rotate(i->rotationSpeed * ts);
+            } else {
+                currentTransform.get_rotation() = newRadians;
+            }
         }
     }
+
+    // MEOW - GGL!!!!!!!!! -k!
+    /*/// od -respect skibeemoviedy */
+
     void collide_check(object& obj1, object& obj2) {
         collision_detecter_2d detector;
         
@@ -1122,6 +1164,13 @@ struct Game {
         (void)x;
         (void)y;
         ((Game*)window->userPointer)->input.left_mb_up();
+    }
+    static void mouseWheel(deafult_window* window, int delta) {
+        if (delta >= 1) {
+            ((Game*)window->userPointer)->input.scroll_up();
+        } else if (delta <= -1) {
+            ((Game*)window->userPointer)->input.scroll_down();
+        }
     }
     static void keyDownCallback(deafult_window* window, int k) {
         ((Game*)window->userPointer)->input.key_down(k);
