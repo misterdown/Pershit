@@ -31,8 +31,8 @@
 #endif // PS_WINDOW_FUNCTION
 
 #ifndef PS_WINDOW_ASSERT
-#   include <cassert>
-#   define PS_WINDOW_ASSERT(expr__) assert(expr__)
+#   include <iostream>
+#   define PS_WINDOW_ASSERT(expr__) do { if(!!(expr__) == false) { std::cerr << "Assertio fault " << __FILE__ << ":" << __LINE__ << " " << #expr__; exit(1); } } while(false) 
 #endif // PS_WINDOW_ASSERT
 
 #ifndef PS_WINDOW_STRING_CHAR
