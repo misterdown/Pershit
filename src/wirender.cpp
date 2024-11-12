@@ -25,7 +25,7 @@
 #include <cassert>
 #include <iostream>
 #include <unordered_map>
-//#include <vk_enum_string_helper.h>
+#include <vulkan/vk_enum_string_helper.h>
 #if (defined __WIN32)
 #   include <vulkan/vulkan_win32.h>
 #else
@@ -33,7 +33,7 @@
 #endif
 using namespace wirender;
 
-#define RENDER_ASSERT(expr__, msg) do { if ((expr__) == 0) { _assert(msg, __FILE__, __LINE__); } } while(0)
+#define RENDER_ASSERT(expr__, msg) do { if ((expr__) == false) { _assert(msg, __FILE__, __LINE__); } } while(0)
 #define RENDER_ARRAY_SIZE(arr__) (sizeof(arr__) / sizeof(arr__[0])) 
 
 /// watch: https://registry.khronos.org/vulkan/specs/1.3-instanceExtensions/man/html/VkResult.html
@@ -41,7 +41,7 @@ using namespace wirender;
         (vkr__ == VK_SUCCESS) || (vkr__ == VK_NOT_READY) || (vkr__ == VK_TIMEOUT) ||\
         (vkr__ == VK_EVENT_SET) || (vkr__ == VK_EVENT_RESET) || (vkr__ == VK_INCOMPLETE ) ||\
         (vkr__ == VK_SUBOPTIMAL_KHR ) || (vkr__ == VK_THREAD_IDLE_KHR ) || (vkr__ == VK_THREAD_DONE_KHR) ||\
-        (vkr__ == VK_OPERATION_DEFERRED_KHR) || (vkr__ == VK_OPERATION_NOT_DEFERRED_KHR) || (vkr__ == VK_THREAD_DONE_KHR), /*string_VkResult(vkr__)*/ "demn");}\
+        (vkr__ == VK_OPERATION_DEFERRED_KHR) || (vkr__ == VK_OPERATION_NOT_DEFERRED_KHR) || (vkr__ == VK_THREAD_DONE_KHR), string_VkResult(vkr__));}\
     while(0);
 //(vkr__ == VK_PIPELINE_COMPILE_REQUIRED) || (vkr__ == VK_PIPELINE_BINARY_MISSING_KHR) || (vkr__ == VK_INCOMPATIBLE_SHADER_BINARY_EXT ) ||
 

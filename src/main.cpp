@@ -20,8 +20,8 @@
 #define PLAYER_SPEED 2.0f
 #define DEFAULT_FRITCTION 1.0f
 #define SPAWNED_OBJECTS_LIMIT 129
-#define TICK_TIME_STEP (1.0 / 32.0)// 0.015625f
-#define FRAMES_PER_TICK 64
+#define TICK_TIME_STEP (1.0 / 32.0)
+#define FRAMES_PER_TICK 4
 #define FRAME_TIME_STEP (TICK_TIME_STEP / (float)FRAMES_PER_TICK)
 
 #define MODEL_ID_PLAYER 0
@@ -36,11 +36,17 @@
 #define MODEL_ID_PLAYER_DEATH_WALL 7
 #define MODEL_PLAYER_DEATH_WALL_VERT_COUNT 6
 
-#define MODEL_ID_BASHI_ENEMY 1
-#define MODEL_BASHI_ENEMY_VERT_COUNT 9
+#define MODEL_ID_MOTHER 8
+#define MODEL_MOTHER_VERT_COUNT 9
+#define MOTHER_SPAWN_DELTA 1.25f
+#define MOTHER_LIFETIME 5.0f
+#define MOTHER_SPAWN_DISTANCE 0.25f
 
-#define MODEL_ID_DASHI_ENEMY 6
-#define MODEL_DASHI_ENEMY_VERT_COUNT 9
+#define MODEL_ID_BASHI 1
+#define MODEL_BASHI_VERT_COUNT 9
+
+#define MODEL_ID_DASHI 6
+#define MODEL_DASHI_VERT_COUNT 9
 
 #define MODEL_ID_START_BUTTON 5
 #define MODEL_START_BUTTON_VERT_COUNT 3
@@ -62,267 +68,12 @@ using ps_window::key_codes;
 
 // probably, we has to написать поясняющие комментарии
 
-// HARDCODE BABYYY
-// Я писал эту ХУЙНЮ 30 минут, тестируя каждый пердёж
+#define FONT_NAME tinyFontModels
+#include "tiny_font"
 
-const static vec2 tinyFontModels[][MAX_MODEL_SIZE] = {
-    { // zero
-        { -0.5f, -1.0f },
-        { 0.45f, -1.0f },
-        { -0.5f, 0.9f },
-        { 0.5f, 1.0f },
-        { -0.45f, 1.0f },
-        { 0.5f, -0.9f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-    },
-    { // one
-        { -0.25f, -1.0f },
-        { 0.5f, -1.0f },
-        { -0.25f, 1.0f },
-        { 0.5f, 1.0f },
-        { -0.25f, 1.0f },
-        { 0.5f, -1.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-    },
-    { // two
-        { 0.5f, 1.0f },
-        { -0.5f, 1.0f },
-        { -0.5f, 0.5f },
-        { 0.5f, -1.0f },
-        { -0.5f, -1.0f },
-        { 0.5f, -0.5f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-    },
-    { // three
-        { 0.5f, 1.0f },
-        { -0.5f, 1.0f },
-        { 0.5f, 0.5f },
-        { 0.5f, 0.3f },
-        { -0.5f, 0.05f },
-        { 0.5f, -0.2f },
-        { 0.5f, -0.5f },
-        { -0.5f, -1.0f },
-        { 0.5f, -1.0f },
-    },
-    { // four
-        { -0.5f, -1.0f },
-        { 0.0f, -0.55f },
-        { -0.5f, -0.05f },
-        { 0.5f, 0.0f },
-        { -0.45f, 0.0f },
-        { 0.5f, -1.0f },
-        { 0.5f, 0.0f },
-        { 0.0f, 1.0f },
-        { 0.5f, 1.0f },
-    },
-    { // five
-        { -0.5f, 0.0f },
-        { 0.5f, 0.0f },
-        { 0.5f, 0.9f },
-        { -0.5f, 1.0f },
-        { 0.0f, 0.55f },
-        { 0.5f, 1.0f },
-        { -0.5f, 0.0f },
-        { 0.5f, -1.0f },
-        { -0.5f, -1.0f },
-    },
-    { // six
-        { -0.5f, 0.0f },
-        { 0.45f, 0.0f },
-        { -0.5f, 0.95f },
-        { 0.5f, 1.0f },
-        { -0.45f, 1.0f },
-        { 0.5f, 0.05f },
-        { -0.5f, 0.0f },
-        { 0.5f, -1.0f },
-        { -0.5f, -1.0f },
-    },
-    { // seven
-        { 0.0f, -1.0f },
-        { 0.5f, -1.0f },
-        { 0.0f, 1.0f },
-        { 0.5f, 1.0f },
-        { 0.0f, 1.0f },
-        { 0.5f, -1.0f },
-        { -0.05f, -0.5f },
-        { -0.5f, -1.0f },
-        { -0.05f, -1.0f },
-    },
-    { // eight
-        { -0.5f, 0.0f },
-        { 0.45f, 0.0f },
-        { -0.5f, 0.95f },
-        { 0.5f, 1.0f },
-        { -0.45f, 1.0f },
-        { 0.5f, 0.05f },
-        { 0.5f, -0.05f },
-        { -0.5f, -0.05f },
-        { -0.0f, -1.0f },
-    },
-    { // nine
-        { -0.5f, 0.0f },
-        { 0.45f, 0.0f },
-        { -0.5f, -0.95f },
-        { 0.5f, -1.0f },
-        { -0.45f, -1.0f },
-        { 0.5f, -0.05f },
-        { -0.5f, -0.0f },
-        { 0.5f, 1.0f },
-        { -0.5f, 1.0f },
-    },
-};
-
-// baked objectModels
-const static vec2 objectModels[][MAX_MODEL_SIZE] = {
-    {
-        { -0.05f, 0.05f },
-        { -0.05f, -0.05f },
-        { 0.025f, -0.035f },
-        { -0.05f, 0.05f },
-        { 0.025f, -0.035f },
-        { 0.025f, 0.035f },
-        { 0.025f, -0.035f },
-        { 0.025f, 0.035f },
-        { 0.1f, 0.0f },
-
-    },
-    {
-        { -0.04f, 0.03f },
-        { -0.04f, -0.03f },
-        { 0.025f, -0.035f },
-        { -0.04f, 0.03f },
-        { 0.025f, -0.035f },
-        { 0.025f, 0.035f },
-        { 0.025f, -0.035f },
-        { 0.025f, 0.035f },
-        { 0.1f, 0.0f },
-
-    },
-    {
-        { -0.05f, 0.025f },
-        { -0.05f, -0.025f },
-        { 0.075f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-
-    },
-    {
-        { 0.1f, -0.05f },
-        { 0.15f, 0.0f },
-        { 0.6f, 0.0f },
-        { 0.1f, 0.05f },
-        { 0.15f, 0.0f },
-        { 0.6f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-
-    },
-    {
-        { -0.05f, 0.12f },
-        { -0.05f, -0.12f },
-        { 0.025f, -0.1f },
-        { -0.05f, 0.12f },
-        { 0.025f, -0.1f },
-        { 0.025f, 0.1f },
-        { 0.025f, -0.1f },
-        { 0.025f, 0.1f },
-        { 0.125f, 0.0f },
-
-    },
-    {
-        { -0.5f, 0.5f },
-        { -0.5f, -0.5f },
-        { 0.5f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-
-    },
-    {
-        { -0.04f, 0.03f },
-        { -0.04f, -0.03f },
-        { 0.03f, -0.035f },
-        { -0.04f, 0.03f },
-        { 0.03f, -0.035f },
-        { 0.03f, 0.035f },
-        { 0.03f, -0.035f },
-        { 0.03f, 0.035f },
-        { 0.15f, 0.0f },
-    },
-    {
-        { -0.04f, 0.7f },
-        { -0.04f, -0.7f },
-        { 0.04f, -0.7f },
-        { -0.04f, 0.7f },
-        { 0.04f, 0.7f },
-        { 0.04f, -0.7f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-        { 0.0f, 0.0f },
-    },
-};
-// baked colliders for the objectModels
-const static polygon_collider_2d collidersForModels[] {
-    polygon_collider_2d( {
-        { -0.05f, 0.05f },
-        { -0.05f, -0.05f },
-        { 0.025f, -0.035f },
-        { 0.025f, 0.035f },
-        { 0.1f, 0.0f },
-    }),
-    polygon_collider_2d( {
-        { -0.04f, 0.03f },
-        { -0.04f, -0.03f },
-        { 0.025f, -0.035f },
-        { 0.025f, 0.035f },
-        { 0.1f, 0.0f },
-    }),
-    polygon_collider_2d( {
-        { -0.05f, 0.025f },
-        { -0.05f, -0.025f },
-        { 0.075f, 0.0f },
-    }),
-    polygon_collider_2d(),
-    polygon_collider_2d( {
-        { -0.05f, 0.12f },
-        { -0.05f, -0.12f },
-        { 0.025f, -0.1f },
-        { 0.025f, 0.1f },
-        { 0.125f, 0.0f },
-    }),
-    polygon_collider_2d( {
-        { -0.5f, 0.5f },
-        { -0.5f, -0.5f },
-        { 0.5f, 0.0f },
-    }),
-    polygon_collider_2d( {
-        { -0.04f, 0.03f },
-        { -0.04f, -0.03f },
-        { 0.03f, -0.035f },
-        { 0.03f, 0.035f },
-        { 0.15f, 0.0f },
-    }),
-    polygon_collider_2d( {
-        { -0.04f, 0.7f },
-        { -0.04f, -0.7f },
-        { 0.04f, -0.7f },
-        { 0.04f, 0.7f },
-    }),
-};
+#define OBJECT_MODELS_NAME objectModels
+#define OBJECT_COLLIDERS_NAME collidersForModels
+#include "object_models_colliders"
 
 
 // very simple implementation of (virtual)input handler 
@@ -432,21 +183,25 @@ enum object_type {
     OBJECT_TYPE_MENU_BUTTON_START,
     OBJECT_TYPE_PLAYER,
     OBJECT_TYPE_ARROW,
-    OBJECT_TYPE_ENEMY_SPAWNER,
+    OBJECT_TYPE_SPAWNER,
     OBJECT_TYPE_PLAYER_BULLET,
     OBJECT_TYPE_PLAYER_DEATH_WALL,
-    OBJECT_TYPE_BASHI_ENEMY,
-    OBJECT_TYPE_DASHI_ENEMY,
+    OBJECT_TYPE_BASHI,
+    OBJECT_TYPE_DASHI,
+    OBJECT_TYPE_MOTHER,
 };
 uint32_t get_model_id(const object_type type1) {
     switch (type1) {
         case OBJECT_TYPE_PLAYER:            return MODEL_ID_PLAYER;
         case OBJECT_TYPE_PLAYER_BULLET:     return MODEL_ID_PLAYER_BULLET;
         case OBJECT_TYPE_PLAYER_DEATH_WALL: return MODEL_ID_PLAYER_DEATH_WALL;
-        case OBJECT_TYPE_BASHI_ENEMY:       return MODEL_ID_BASHI_ENEMY;
-        case OBJECT_TYPE_DASHI_ENEMY:       return MODEL_ID_DASHI_ENEMY;
+        case OBJECT_TYPE_BASHI:             return MODEL_ID_BASHI;
+        case OBJECT_TYPE_DASHI:             return MODEL_ID_DASHI;
+        case OBJECT_TYPE_MOTHER:            return MODEL_ID_MOTHER;
         case OBJECT_TYPE_MENU_BUTTON_START: return MODEL_ID_START_BUTTON;
-        default:                            return ~0u;
+        case OBJECT_TYPE_SPAWNER:
+            return std::numeric_limits<uint32_t>::max(); // valid id, but invalid model
+        default:                            throw std::runtime_error("invalid model index on get_model_id: " + std::to_string((int)type1));
     }
 }
 uint32_t get_model_verteces_count(const object_type type1) {
@@ -454,8 +209,9 @@ uint32_t get_model_verteces_count(const object_type type1) {
         case OBJECT_TYPE_PLAYER:            return MODEL_PLAYER_VERT_COUNT;
         case OBJECT_TYPE_PLAYER_BULLET:     return MODEL_PLAYER_BULLET_VERT_COUNT;
         case OBJECT_TYPE_PLAYER_DEATH_WALL: return MODEL_PLAYER_DEATH_WALL_VERT_COUNT;
-        case OBJECT_TYPE_BASHI_ENEMY:       return MODEL_BASHI_ENEMY_VERT_COUNT;
-        case OBJECT_TYPE_DASHI_ENEMY:       return MODEL_DASHI_ENEMY_VERT_COUNT;
+        case OBJECT_TYPE_BASHI:             return MODEL_BASHI_VERT_COUNT;
+        case OBJECT_TYPE_DASHI:             return MODEL_DASHI_VERT_COUNT;
+        case OBJECT_TYPE_MOTHER:            return MODEL_MOTHER_VERT_COUNT;
         case OBJECT_TYPE_MENU_BUTTON_START: return MODEL_START_BUTTON_VERT_COUNT;
         default:                            return 0;
     }
@@ -470,6 +226,8 @@ struct object {
     float rotationSpeed;
     float timer1;
     float timerDur1;
+    float timer2;
+    float timerDur2;
 
     public:
     object() {
@@ -483,7 +241,9 @@ struct object {
         velocity(velocity),
         rotationSpeed(0.0f),
         timer1(0.0f),
-        timerDur1(0.0f) {
+        timerDur1(0.0f),
+        timer2(0.0f),
+        timerDur2(0.0f) {
 
     }
 };
@@ -581,7 +341,7 @@ struct Game {
         bufferVerteces(reinterpret_cast<vec2*>(objectsBuffer.map_memory())),
         bufferVertexCount(0),
         sceneState{} {
-
+        
         window.userPointer = this;
         window.userKeyDownCallback = &keyDownCallback;
         window.userKeyUpCallback = &keyUpCallback;
@@ -644,7 +404,7 @@ struct Game {
         add_object(object(OBJECT_TYPE_PLAYER));
 
         {
-            object spawner(OBJECT_TYPE_ENEMY_SPAWNER);
+            object spawner(OBJECT_TYPE_SPAWNER);
             spawner.timerDur1 = 1.0f;
             add_object(std::move(spawner));
         }
@@ -796,7 +556,7 @@ struct Game {
 
         int bashiCount = 0;
         for (const auto& i : gameObjects) {
-            if ((i.type != OBJECT_TYPE_BASHI_ENEMY) || (&i == &currentObject))
+            if ((i.type != OBJECT_TYPE_BASHI) || (&i == &currentObject))
                 continue;
             const vec2 diff = currentObject.transform.get_position() - i.transform.get_position();
             if (length(diff) > neighborDistance)
@@ -934,7 +694,7 @@ struct Game {
             if (i->type == OBJECT_TYPE_PLAYER) {
                 i->velocity /= 1.0f + ts * 2.0f;
 
-            } else if (i->type == OBJECT_TYPE_ENEMY_SPAWNER) {
+            } else if (i->type == OBJECT_TYPE_SPAWNER) {
                 if ((gameObjects.size() - gameObjects.get_free_cells().size()) > SPAWNED_OBJECTS_LIMIT)
                     continue;
 
@@ -942,13 +702,17 @@ struct Game {
                     const float radians = ((float)rand() / (float)RAND_MAX) * (PERSHIT_FPI * 2.0f);
                     const vec2 position = vec2(cos(radians), sin(radians)) + gameObjects[playerIndex].transform.get_position();
 
-                    int randResult = rand() % 3;
+                    int randResult = rand() % 12;
                     if (randResult == 0) {
-                        object dashi(OBJECT_TYPE_DASHI_ENEMY, transform2d(position, 0.0f));
-                        add_object(std::move(dashi));       // ДАЖЕ если вектор перераспределится, то благодаря
+                        object mother(OBJECT_TYPE_MOTHER, transform2d(position, 0.0f));
+                        add_object(std::move(mother));      // ДАЖЕ если вектор перераспределится, то благодаря
                         i = &gameObjects[index];            // этой строке, указатель на объект останется валидным
+                    } else if (randResult < 4) {
+                        object dashi(OBJECT_TYPE_DASHI, transform2d(position, 0.0f));
+                        add_object(std::move(dashi));
+                        i = &gameObjects[index];            // указатель на объект останется валидным
                     } else {
-                        object bashi(OBJECT_TYPE_BASHI_ENEMY, transform2d(position, 0.0f));
+                        object bashi(OBJECT_TYPE_BASHI, transform2d(position, 0.0f));
                         bashi.velocity = normalized(position - gameObjects[playerIndex].transform.get_position());
                         add_object(std::move(bashi));
                         i = &gameObjects[index];            // указатель на объект останется валидным
@@ -974,7 +738,7 @@ struct Game {
                 }
                 i->timer1 += ts;
 
-            } else if (i->type == OBJECT_TYPE_BASHI_ENEMY) {
+            } else if (i->type == OBJECT_TYPE_BASHI) {
                 const vec2 murmur = murmuration(*i); // nya
                 
                 const vec2 direction = 
@@ -987,7 +751,7 @@ struct Game {
                 i->velocity /= 1.0f + ts;
                 i->timer1 += ts;
 
-            } else if (i->type == OBJECT_TYPE_DASHI_ENEMY) {
+            } else if (i->type == OBJECT_TYPE_DASHI) {
                 const vec2 direction = normalized(gameObjects[playerIndex].transform.get_position() - currentTransform.get_position());
                 if (i->timer1 > 1.5f) {
                     i->velocity += direction * 3.0f;
@@ -996,6 +760,33 @@ struct Game {
                 newRadians = atan2(i->velocity.y, i->velocity.x);
                 i->velocity /= 1.0f + ts;
                 i->timer1 += ts;
+            } else if (i->type == OBJECT_TYPE_MOTHER) {
+                if ((gameObjects.size() - gameObjects.get_free_cells().size()) > SPAWNED_OBJECTS_LIMIT)
+                    continue;
+                if (i->timer2 > MOTHER_LIFETIME) {
+                    destroy_object(*i);
+                    continue;
+                }
+
+                while (i->timer1 > MOTHER_SPAWN_DELTA) {
+                    const float radians = ((float)rand() / (float)RAND_MAX) * (PERSHIT_FPI * 2.0f);
+                    const vec2 position = vec2(cos(radians), sin(radians)) * MOTHER_SPAWN_DISTANCE + currentTransform.get_position();
+
+                    int randResult = rand() % 3;
+                    if (randResult == 0) {
+                        object dashi(OBJECT_TYPE_DASHI, transform2d(position, 0.0f));
+                        add_object(std::move(dashi));       // ДАЖЕ если вектор перераспределится, то благодаря
+                        i = &gameObjects[index];            // этой строке, указатель на объект останется валидным
+                    } else {
+                        object bashi(OBJECT_TYPE_BASHI, transform2d(position, 0.0f));
+                        bashi.velocity = normalized(position - currentTransform.get_position());
+                        add_object(std::move(bashi));
+                        i = &gameObjects[index];            // указатель на объект останется валидным
+                    }
+                    i->timer1 -= MOTHER_SPAWN_DELTA;
+                }
+                i->timer1 += ts;
+                i->timer2 += ts;
             }
             currentTransform.move(i->velocity * ts);
             if (currentTransform.get_rotation() == newRadians) {
@@ -1020,51 +811,67 @@ struct Game {
 
         // I CAN first check if the objects are colliding, and then look at their types,
         // BUT this will probably add a couple of thousand extra collision checks '.o.'
-        if ((type1 == OBJECT_TYPE_PLAYER) && (type2 == OBJECT_TYPE_BASHI_ENEMY)) { // player - bashi collision
+        if ((type1 == OBJECT_TYPE_PLAYER) && (type2 == OBJECT_TYPE_BASHI)) { // player - bashi collision
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj1);
             }
-        } else if ((type1 == OBJECT_TYPE_BASHI_ENEMY) && (type2 == OBJECT_TYPE_PLAYER)) {
+        } else if ((type1 == OBJECT_TYPE_BASHI) && (type2 == OBJECT_TYPE_PLAYER)) {
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj2);
             }
-        } else if ((type1 == OBJECT_TYPE_PLAYER) && (type2 == OBJECT_TYPE_DASHI_ENEMY)) { // player - dashi collision
+        } else if ((type1 == OBJECT_TYPE_PLAYER) && (type2 == OBJECT_TYPE_DASHI)) { // player - dashi collision
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj1);
             }
-        } else if ((type1 == OBJECT_TYPE_DASHI_ENEMY) && (type2 == OBJECT_TYPE_PLAYER)) {
+        } else if ((type1 == OBJECT_TYPE_DASHI) && (type2 == OBJECT_TYPE_PLAYER)) {
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj2);
             }
-        } else if ((type1 == OBJECT_TYPE_BASHI_ENEMY) && (type2 == OBJECT_TYPE_PLAYER_BULLET)) { // players bullet - bashi enemy collision
+        } else if ((type1 == OBJECT_TYPE_BASHI) && (type2 == OBJECT_TYPE_PLAYER_BULLET)) { // players bullet - bashi collision
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj1);
             }
-        } else if ((type1 == OBJECT_TYPE_PLAYER_BULLET) && (type2 == OBJECT_TYPE_BASHI_ENEMY)) {
+        } else if ((type1 == OBJECT_TYPE_PLAYER_BULLET) && (type2 == OBJECT_TYPE_BASHI)) {
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj2);
             }
-        } else if ((type1 == OBJECT_TYPE_DASHI_ENEMY) && (type2 == OBJECT_TYPE_PLAYER_BULLET)) { // players bullet - dashi enemy collision
+        } else if ((type1 == OBJECT_TYPE_DASHI) && (type2 == OBJECT_TYPE_PLAYER_BULLET)) { // players bullet - dashi collision
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj1);
             }
-        } else if ((type1 == OBJECT_TYPE_PLAYER_BULLET) && (type2 == OBJECT_TYPE_DASHI_ENEMY)) {
+        } else if ((type1 == OBJECT_TYPE_PLAYER_BULLET) && (type2 == OBJECT_TYPE_DASHI)) {
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj2);
             }
-        } else if ((type1 == OBJECT_TYPE_BASHI_ENEMY) && (type2 == OBJECT_TYPE_PLAYER_DEATH_WALL)) { // players death wall - bashi enemy collision
+        } else if ((type1 == OBJECT_TYPE_BASHI) && (type2 == OBJECT_TYPE_PLAYER_DEATH_WALL)) { // players death wall - bashi collision
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj1);
             }
-        } else if ((type1 == OBJECT_TYPE_PLAYER_DEATH_WALL) && (type2 == OBJECT_TYPE_BASHI_ENEMY)) {
+        } else if ((type1 == OBJECT_TYPE_PLAYER_DEATH_WALL) && (type2 == OBJECT_TYPE_BASHI)) {
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj2);
             }
-        } else if ((type1 == OBJECT_TYPE_DASHI_ENEMY) && (type2 == OBJECT_TYPE_PLAYER_DEATH_WALL)) { // players death wall - dashi enemy collision
+        } else if ((type1 == OBJECT_TYPE_DASHI) && (type2 == OBJECT_TYPE_PLAYER_DEATH_WALL)) { // players death wall - dashi collision
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj1);
             }
-        } else if ((type1 == OBJECT_TYPE_PLAYER_DEATH_WALL) && (type2 == OBJECT_TYPE_DASHI_ENEMY)) {
+        } else if ((type1 == OBJECT_TYPE_PLAYER_DEATH_WALL) && (type2 == OBJECT_TYPE_DASHI)) {
+            if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
+                destroy_object(obj2);
+            }
+        } else if ((type1 == OBJECT_TYPE_MOTHER) && (type2 == OBJECT_TYPE_PLAYER_BULLET)) { // players bullet - mother collision
+            if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
+                destroy_object(obj1);
+            }
+        } else if ((type1 == OBJECT_TYPE_PLAYER_BULLET) && (type2 == OBJECT_TYPE_MOTHER)) {
+            if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
+                destroy_object(obj2);
+            }
+        } else if ((type1 == OBJECT_TYPE_MOTHER) && (type2 == OBJECT_TYPE_PLAYER_DEATH_WALL)) { // players death wall - mother collision
+            if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
+                destroy_object(obj1);
+            }
+        } else if ((type1 == OBJECT_TYPE_PLAYER_DEATH_WALL) && (type2 == OBJECT_TYPE_MOTHER)) {
             if (detector.is_collide(collider1, collider2, 16, obj1.transform, obj2.transform)) {
                 destroy_object(obj2);
             }
