@@ -22,28 +22,21 @@
     SOFTWARE.
 */
 #include "wirender.hpp"
-#include <cassert>
 #include <iostream>
 #include <unordered_map>
 #include <vulkan/vk_enum_string_helper.h>
-#if (defined __WIN32)
+#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
 #   include <vulkan/vulkan_win32.h>
-#else
-#   include <vulkan/vulkan_xlib.h>
 #endif
 using namespace wirender;
 
-#define RENDER_ASSERT(expr__, msg) do { if ((expr__) == false) { _assert(msg, __FILE__, __LINE__); } } while(0)
+#define RENDER_ASSERT(expr__, msg) do { if ((expr__) == false) { std::cerr << "render assertion fault: " << __FILE__ << ":" << __LINE__ << ": " << msg; exit(1); } } while(0)
 #define RENDER_ARRAY_SIZE(arr__) (sizeof(arr__) / sizeof(arr__[0])) 
 
 /// watch: https://registry.khronos.org/vulkan/specs/1.3-instanceExtensions/man/html/VkResult.html
 #define RENDER_VK_CHECK(vkrexpr___) do { const VkResult vkr__ = vkrexpr___; RENDER_ASSERT(\
-        (vkr__ == VK_SUCCESS) || (vkr__ == VK_NOT_READY) || (vkr__ == VK_TIMEOUT) ||\
-        (vkr__ == VK_EVENT_SET) || (vkr__ == VK_EVENT_RESET) || (vkr__ == VK_INCOMPLETE ) ||\
-        (vkr__ == VK_SUBOPTIMAL_KHR ) || (vkr__ == VK_THREAD_IDLE_KHR ) || (vkr__ == VK_THREAD_DONE_KHR) ||\
-        (vkr__ == VK_OPERATION_DEFERRED_KHR) || (vkr__ == VK_OPERATION_NOT_DEFERRED_KHR) || (vkr__ == VK_THREAD_DONE_KHR), string_VkResult(vkr__));}\
+        (vkr__ == VK_SUCCESS), string_VkResult(vkr__));}\
     while(0);
-//(vkr__ == VK_PIPELINE_COMPILE_REQUIRED) || (vkr__ == VK_PIPELINE_BINARY_MISSING_KHR) || (vkr__ == VK_INCOMPATIBLE_SHADER_BINARY_EXT ) ||
 
 namespace wirender {
     namespace RenderVulkanUtils {
@@ -59,7 +52,7 @@ namespace wirender {
 
         static const char* deviceExtensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
         static const char* validationLayers[] = { "VK_LAYER_KHRONOS_validation" };
-        #if (defined __WIN32)
+        #if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
             static const char* instanceExtensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, "VK_EXT_debug_utils" };
         #else
         #   error "NOT SUPPORTED"
@@ -612,7 +605,7 @@ void buffer_host_mapped_memory::set_members_zero() {
 
     return RenderVulkanUtils::choose_best_physical_device(devices, deviceCount);
 }
-#if (defined __WIN32)
+#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
 [[nodiscard]] VkSurfaceKHR render_manager::create_surface() const {
     const VkAllocationCallbacks* allocationCallbacks = nullptr;
 
@@ -631,25 +624,6 @@ void buffer_host_mapped_memory::set_members_zero() {
 
     return newSurface;
 }
-#else
-[[nodiscard]] VkSurfaceKHR render_manager::create_surface() const {
-    const VkAllocationCallbacks* allocationCallbacks = nullptr;
-
-    RENDER_ASSERT(windowInfo.dpy != 0, "Invalid display");
-    RENDER_ASSERT(windowInfo.window != 0, "Invalid window");
-
-    const VkXlibSurfaceCreateInfoKHR surfaceInfo {
-        .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-        .pNext = nullptr,
-        .flags = static_cast<VkFlags>(0),
-        .dpy = windowInfo.dpy,
-        .window = windowInfo.window,
-    };
-    VkSurfaceKHR newSurface;
-    RENDER_VK_CHECK(vkCreateXlibSurfaceKHR(vulkanInstance, &surfaceInfo, allocationCallbacks, &newSurface));
-
-    return newSurface;
-}
 #endif // defined __WIN32
 [[nodiscard]] RenderVulkanUtils::queue_family_indices render_manager::create_falimy_indices() const {
     RenderVulkanUtils::queue_family_indices queueIndeces = RenderVulkanUtils::find_queue_families(physicalDevice, surface);
@@ -661,13 +635,15 @@ void buffer_host_mapped_memory::set_members_zero() {
 
     VkDeviceQueueCreateInfo queueCreateInfos[2];
 
-    float queuePriority = 1.0f;
+    const float queuePriorities[] =  { 1.0f };
     for (uint32_t i = 0; i < physicalDevice.queueIndeces.falimiesCount; ++i) {
         VkDeviceQueueCreateInfo& queueCreateInfo = queueCreateInfos[i];
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.pNext = nullptr;
+        queueCreateInfo.flags = static_cast<VkFlags>(0);
         queueCreateInfo.queueFamilyIndex = physicalDevice.queueIndeces.indeces[i];
         queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfo.pQueuePriorities = queuePriorities;
     }
     const VkDeviceCreateInfo deviceInfo{
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -681,7 +657,6 @@ void buffer_host_mapped_memory::set_members_zero() {
         .ppEnabledExtensionNames =  RenderVulkanUtils::deviceExtensions,
         .pEnabledFeatures = nullptr,
     };
-
     RenderVulkanUtils::logical_device_info result{};
     RENDER_VK_CHECK(vkCreateDevice(physicalDevice, &deviceInfo, allocationCallbacks, &result.device));
     vkGetDeviceQueue(result.device, physicalDevice.queueIndeces.graphicsFamily, 0, &result.graphicsQueue);
@@ -1178,7 +1153,7 @@ uint16_t getWordCount(uint32_t word) {
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = createInfo.polygonMode,
-        .cullMode = createInfo.cullMode,//VK_CULL_MODE_BACK_BIT,
+        .cullMode = (VkCullModeFlags)createInfo.cullMode,//VK_CULL_MODE_BACK_BIT,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable = VK_FALSE,
         .depthBiasConstantFactor = 0,
@@ -1668,7 +1643,7 @@ void RenderVulkanUtils::analyze_spirv(const uint32_t* code, uint32_t codeSize, V
     for (const auto& i : declarations) {
         if (i.second.isPublic) {
             RENDER_ASSERT(variableCount < RENDER_SPIRV_PUBLIC_VARIABLE_MAX_COUNT, "variableCount has to be less than RENDER_SPIRV_PUBLIC_VARIABLE_MAX_COUNT");
-            publicDecls[variableCount] = RenderVulkanUtils::public_spirv_variable_declaration{.binding = i.second.binding, .descriptorSet = i.second.descriptorSet, .size = i.second.size, .type = i.second.storageClass, stageFlags};
+            publicDecls[variableCount] = RenderVulkanUtils::public_spirv_variable_declaration{.binding = i.second.binding, .descriptorSet = i.second.descriptorSet, .size = i.second.size, .type = i.second.storageClass, .stageFlags = stageFlags};
             ++variableCount;
         }
     }

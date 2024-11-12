@@ -22,11 +22,8 @@
     SOFTWARE.
 */
 #include <vulkan/vulkan.h>
-#if (defined __WIN32)
+#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
 #   include <windows.h>
-#else
-#   include <X11/Xlib.h>
-//  use XLib for creating surface
 #endif
 
 #define RENDER_VK_INVALID_FAMILY_INDEX ~0u
@@ -141,15 +138,10 @@ namespace wirender {
         VkShaderStageFlagBits stage;
     };
 
-    #if (defined __WIN32)
+    #if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
     struct window_info final {
         HWND hwnd;
         HINSTANCE hInstance;
-    };
-    #else
-    struct window_info final {
-        Display* dpy;
-        Window window;
     };
     #endif // defined __WIN32
 

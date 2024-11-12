@@ -45,15 +45,13 @@
 #   define PS_MOVE std::move
 #endif // PS_MOVE
 
-#ifdef __WIN32
+#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
 #   include <windows.h>
-#else
-#   include <X11/Xlib.h> // for UNIX-like systems, max will suck
 #endif // WIN32
 
 namespace ps_window {
 // Странная практика("include" в namespac`е), но должна работать буквально на любом компиляторе, да?
-#ifdef __WIN32
+#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
     namespace details {
         static size_t windowCount = 0;
     };
@@ -240,7 +238,7 @@ namespace ps_window {
 
 #endif// ifdef __WIN32
     class deafult_window {
-#ifdef __WIN32
+#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
         private:
         static LRESULT WINAPI mysypurproc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
             switch (Msg) {
@@ -358,7 +356,7 @@ namespace ps_window {
         void* userPointer;
 
         private:
-#ifdef __WIN32
+#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
         void destroy_self_platform_spec() {
             if (handles_.hwnd != 0) {
                 DestroyWindow(handles_.hwnd);
@@ -402,7 +400,7 @@ namespace ps_window {
 #endif // __WIN32
 
         public:
-#ifdef __WIN32
+#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
         deafult_window(PS_WINDOW_STRING_CHAR name = "", create_window_frags flags = CREATE_WINDOW_FLAGS_BITS_RESIZABLE | CREATE_WINDOW_FLAGS_BITS_MENU, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int w = CW_USEDEFAULT, int h = CW_USEDEFAULT) :
                 handles_{},
                 name_(name),
@@ -416,7 +414,7 @@ namespace ps_window {
                 userLmbDownCallback(), userLmbUpCallback(),
                 userRbDownCallback(), userRbUpCallback(),
                 userPointer(nullptr) {
-
+            
             handles_.hInstance = GetModuleHandleA(0);
             PS_WINDOW_ASSERT(handles_.hInstance); // WHAT
             char classNameBuffer[128]{};
@@ -442,6 +440,7 @@ namespace ps_window {
             PS_WINDOW_ASSERT(handles_.hwnd);
 
             SetWindowLongPtrA(handles_.hwnd, GWLP_USERDATA, (LONG_PTR)(void*)this);
+
         }
 #else
         

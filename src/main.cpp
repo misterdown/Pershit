@@ -155,7 +155,10 @@ struct input_state {
 
 vector<unsigned char> readBinary(const std::string& path) {
     std::fstream file(path, ios::binary | ios::out | ios::in);
-    assert(file.good());
+    if (!file.is_open()) {
+        std::cerr << "failed to open " << path << " file";
+        exit(1);
+    }
     const size_t fileSize = file.seekg(0, ios::end).tellg();
     file.seekg(ios::beg);
 

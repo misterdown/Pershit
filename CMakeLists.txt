@@ -2,8 +2,14 @@ cmake_minimum_required(VERSION 3.30)
 
 project(Pershit)
 
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_C_STANDARD 14)
+
+if((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")) # i HATE MSVC
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED true)
+else()
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_CXX_STANDARD_REQUIRED true)
+endif()
 
 set(SOURCE)
 file(GLOB SOURCE "src/*.cpp")
@@ -31,6 +37,9 @@ if(WIN32)
         target_include_directories(Pershit PRIVATE "./vulkan_not_found_includes")
     endif()
 
+    if((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")) # i HATE MSVC
+        target_compile_options(Pershit PRIVATE "/Zc:__cplusplus")
+    endif()
 else()
     message("Unknown platform")
 endif()
