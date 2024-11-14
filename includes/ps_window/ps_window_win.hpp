@@ -1,4 +1,4 @@
-/*  ps_window.hpp
+/*  ps_window_win.hpp
     MIT License
 
     Copyright (c) 2024 Aidar Shigapov
@@ -22,8 +22,8 @@
     SOFTWARE.
 */
 // P.S. "ps" = PonoS
-#ifndef PS_WINDOW_HPP_
-#define PS_WINDOW_HPP_ 1
+#ifndef PS_WINDOW_WIN_HPP_
+#define PS_WINDOW_WIN_HPP_ 1
 
 #ifndef PS_WINDOW_FUNCTION 
 #   include <functional>
@@ -32,7 +32,7 @@
 
 #ifndef PS_WINDOW_ASSERT
 #   include <iostream>
-#   define PS_WINDOW_ASSERT(expr__) do { if(!!(expr__) == false) { std::cerr << "Assertio fault " << __FILE__ << ":" << __LINE__ << " " << #expr__; exit(1); } } while(false) 
+#   define PS_WINDOW_ASSERT(expr__) do { if(!!(expr__) == false) { std::cerr << "Assertio fault: " << __FILE__ << ":" << __LINE__ << " " << #expr__; exit(1); } } while(false) 
 #endif // PS_WINDOW_ASSERT
 
 #ifndef PS_WINDOW_STRING_CHAR
@@ -45,13 +45,13 @@
 #   define PS_MOVE std::move
 #endif // PS_MOVE
 
-#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
-#   include <windows.h>
-#endif // WIN32
+#include <windows.h>
+#ifdef _MSC_VER
+#   pragma comment(lib, "gdi32.lib")
+#   pragma comment(lib, "user32.lib")
+#endif
 
 namespace ps_window {
-// Странная практика("include" в namespac`е), но должна работать буквально на любом компиляторе, да?
-#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
     namespace details {
         static size_t windowCount = 0;
     };
@@ -227,18 +227,11 @@ namespace ps_window {
     struct windows_handles {
         HWND hwnd{};
         HINSTANCE hInstance{};
+        HICON hIcon{};
+        void* iconDataPointer{nullptr};
+        HBITMAP iconData{};
     };
-
-#else
-    typedef int create_window_frags;
-    struct windows_handles {
-        ps_x11::Display* pDisplay;
-        ps_x11::Window * xWindow;
-    };
-
-#endif// ifdef __WIN32
     class deafult_window {
-#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
         private:
         static LRESULT WINAPI mysypurproc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
             switch (Msg) {
@@ -332,7 +325,6 @@ namespace ps_window {
             }
             return DefWindowProcA(hWnd, Msg, wParam, lParam);
         }
-#endif // __WIN32
         private:
         windows_handles handles_;
         PS_WINDOW_STRING_CHAR name_;
@@ -343,9 +335,9 @@ namespace ps_window {
 
         public:
         PS_WINDOW_FUNCTION<void(deafult_window*)> userDestroyCallback;
-        PS_WINDOW_FUNCTION<void(deafult_window*, int)> userKeyUpCallback;
-        PS_WINDOW_FUNCTION<void(deafult_window*, int)> userKeyDownCallback;
         PS_WINDOW_FUNCTION<void(deafult_window*, int)> userMouseWheelCallback;
+        PS_WINDOW_FUNCTION<void(deafult_window*, int)> userKeyDownCallback;
+        PS_WINDOW_FUNCTION<void(deafult_window*, int)> userKeyUpCallback;
         PS_WINDOW_FUNCTION<void(deafult_window*, int, int)> userLmbDownCallback;
         PS_WINDOW_FUNCTION<void(deafult_window*, int, int)> userLmbUpCallback;
         PS_WINDOW_FUNCTION<void(deafult_window*, int, int)> userRbDownCallback;
@@ -356,7 +348,6 @@ namespace ps_window {
         void* userPointer;
 
         private:
-#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
         void destroy_self_platform_spec() {
             if (handles_.hwnd != 0) {
                 DestroyWindow(handles_.hwnd);
@@ -386,21 +377,70 @@ namespace ps_window {
         void show_platform_spec() {
             ShowWindow(handles_.hwnd, SW_SHOW);
         }
-#else 
-        void destroy_self_platform_spec() {
-            if (handles_.pDisplay != 0) {
-                XDestroyWindow(handles.pDisplay, handles_.xWindow);
-                handles_.pDisplay = 0;
-                handles_.xWindow = 0;
+        void set_icon_platform_spec(int w, int h, const void* colorData, bool isrgba) {
+            PS_WINDOW_ASSERT(colorData != nullptr);
+            PS_WINDOW_ASSERT(w > 0);
+            PS_WINDOW_ASSERT(h > 0);
+
+            if (handles_.iconData == 0) {
+                const BITMAPINFO bmi {
+                    .bmiHeader = {
+                        .biSize = sizeof(BITMAPINFOHEADER),
+                        .biWidth = w,
+                        .biHeight = -h, // invert y axis
+                        .biPlanes = 1,
+                        .biBitCount = 24,
+                        .biCompression = BI_RGB,
+                        .biSizeImage = 0,
+                        .biXPelsPerMeter = 0,
+                        .biYPelsPerMeter = 0,
+                        .biClrUsed = 0,
+                        .biClrImportant = 0,
+                    },
+                    .bmiColors = {},
+                };
+                handles_.iconData = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, &handles_.iconDataPointer, NULL, 0);
+                PS_WINDOW_ASSERT(handles_.iconData != 0);
             }
+            char* bits = (char*)handles_.iconDataPointer;
+
+            if (isrgba) {
+                for (int rgbI = 0, rgbaI = 0; rgbaI < (w * h * 4); rgbaI += 4, rgbI += 3) {
+                    bits[rgbI] = ((char*)colorData)[rgbaI];
+                    bits[rgbI + 1] = ((char*)colorData)[rgbaI + 1];
+                    bits[rgbI + 2] = ((char*)colorData)[rgbaI + 2];
+                }
+            } else {
+                memcpy(bits, colorData, w * h * 3);
+            }
+            
+
+            HBITMAP hbmMask = CreateBitmap(w, h, 1, 1, NULL);
+            PS_WINDOW_ASSERT(hbmMask != 0);
+
+            ICONINFO ii {
+                .fIcon = true,
+                .xHotspot = 0,
+                .yHotspot = 0,
+                .hbmMask = hbmMask,
+                .hbmColor = handles_.iconData,
+            };
+
+            if (handles_.hIcon) {
+                DeleteObject((HGDIOBJ)handles_.hIcon);
+                handles_.hIcon = 0;
+            }
+
+            handles_.hIcon = CreateIconIndirect(&ii);
+            PS_WINDOW_ASSERT(handles_.hIcon != 0);
+
+            SendMessageA(handles_.hwnd, WM_SETICON, ICON_BIG, (LPARAM)handles_.hIcon);
+            SendMessageA(handles_.hwnd, WM_SETICON, ICON_SMALL, (LPARAM)handles_.hIcon);
+
+            DeleteObject((HGDIOBJ)hbmMask);
         }
-        [[nodiscard]] bool is_open_platform_spec() const {
-            return handles_.pDisplay != 0;
-        }
-#endif // __WIN32
 
         public:
-#if ((defined __WIN32) || (defined _WIN32) || (defined _WIN32_) || (defined __WIN32__))
         deafult_window(PS_WINDOW_STRING_CHAR name = "", create_window_frags flags = CREATE_WINDOW_FLAGS_BITS_RESIZABLE | CREATE_WINDOW_FLAGS_BITS_MENU, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int w = CW_USEDEFAULT, int h = CW_USEDEFAULT) :
                 handles_{},
                 name_(name),
@@ -417,7 +457,8 @@ namespace ps_window {
             
             handles_.hInstance = GetModuleHandleA(0);
             PS_WINDOW_ASSERT(handles_.hInstance); // WHAT
-            char classNameBuffer[128]{};
+
+            char classNameBuffer[128]{}; // 30 + std::numeric_limits<size_t>::digits10 < 128. Everything OK.
             sprintf(classNameBuffer, "ps_window_win32_window_class%zu", details::windowCount);
             ++details::windowCount;
 
@@ -435,16 +476,24 @@ namespace ps_window {
             };
             PS_WINDOW_ASSERT(RegisterClassA(&wc));
             
-
             handles_.hwnd = CreateWindowA(classNameBuffer, name.c_str(), flags, x, y, w, h, 0, 0, 0, 0);
             PS_WINDOW_ASSERT(handles_.hwnd);
 
             SetWindowLongPtrA(handles_.hwnd, GWLP_USERDATA, (LONG_PTR)(void*)this);
 
         }
-#else
-        
-#endif
+        ~deafult_window() {
+            if (handles_.iconData != 0) {
+                DeleteObject(handles_.iconData);
+                handles_.iconData = 0;
+                handles_.iconDataPointer = nullptr;
+            }
+            if (handles_.hIcon != 0) {
+                DeleteObject(handles_.hIcon);
+                handles_.hIcon = 0;
+            }
+        }
+
         private:
         void destroy_callback() {
             if (userDestroyCallback)
@@ -526,6 +575,7 @@ namespace ps_window {
             pool_events_platform_spec();
         }
         void set_window_name_str(const char* newName) {
+            PS_WINDOW_ASSERT(newName != nullptr);
             name_ = newName;
             set_window_name_platform_spec(newName);
         }
@@ -536,6 +586,22 @@ namespace ps_window {
         void set_window_name(PS_WINDOW_STRING_CHAR&& newName) {
             name_ = PS_MOVE(newName);
             set_window_name_platform_spec(name_.c_str());
+        }
+        /**
+        * @brief Sets the window icon using raw RGB or RGBA color data.
+        *
+        * @param w The width of the icon.
+        * @param h The height of the icon.
+        * @param colorData Pointer to the raw RGB or RGBA color data.
+        * @param isrgba Flag indicating whether the color data is in RGBA format. `true` by default.
+        *
+        * @note If you set icon 4992 times you will die.
+        *       The function assumes that the color data is in the correct format
+        *       and size. For RGB format, the size should be w * h * 3 bytes.
+        *       For RGBA format, the size should be w * h * 4 bytes.
+        */
+        void set_icon(int w, int h, const void* colorData, bool isrgba = true) {
+            set_icon_platform_spec(w, h, colorData, isrgba);
         }
         [[nodiscard]] const PS_WINDOW_STRING_CHAR& get_window_name() const {
             return name_;
@@ -564,46 +630,7 @@ namespace ps_window {
         void show() {
             show_platform_spec();
         }
-
-#ifdef VULKAN_H_
-#ifdef VULKAN_WIN32_H_
-        VkSurface create_vulkan_surface(VkInstace instance, const VkAllocationCallbacks* allocationCallbacks) {
-        
-            PS_WINDOW_ASSERT(handles_.hwnd != 0);
-            PS_WINDOW_ASSERT(handles_.hInstance != 0);
-
-            const VkWin32SurfaceCreateInfoKHR surfaceInfo {
-                .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-                .pNext = nullptr,
-                .flags = (VkFlags)0,
-                .hinstance = handles_.hInstance,
-                .hwnd = handles_.hwnd,
-            };
-            VkSurfaceKHR newSurface;
-            PS_WINDOW_ASSERT(vkCreateWin32SurfaceKHR(instance, &surfaceInfo, allocationCallbacks, &newSurface) == VK_SUCCESS);
-
-            return newSurface;
-        }
-#elif VULKAN_XLIB_H_
-        [[nodiscard]] VkSurfaceKHR create_vulkan_surface(VkInstace instance, const VkAllocationCallbacks* allocationCallbacks) const {
-            PS_WINDOW_ASSERT(handles_.dpy != 0);
-            PS_WINDOW_ASSERT(handles_.window != 0);
-
-            const VkXlibSurfaceCreateInfoKHR surfaceInfo {
-                .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-                .pNext = nullptr,
-                .flags = (VkFlags)0,
-                .dpy = handles_.pDisplay,
-                .window = handles_.xWindow,
-            };
-            VkSurfaceKHR newSurface;
-            PS_WINDOW_ASSERT(vkCreateXlibSurfaceKHR(instance, &surfaceInfo, allocationCallbacks, &newSurface) == VK_SUCCESS);
-
-            return newSurface;
-        }
-#endif // VULKAN_WIN32_H_ || VULKAN_XLIB_H_
-#endif
     };
 };
 
-#endif// ifndef PS_WINDOW_HPP_
+#endif// ifndef PS_WINDOW_WIN_HPP_

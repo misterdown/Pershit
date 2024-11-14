@@ -8,7 +8,7 @@
 #include <stack>
 #include <optional>
 #include <chrono>
-#include <ps_window.hpp>
+#include <ps_window/ps_window.hpp>
 #include <sparse_vector.hpp>
 #include "sgjk_glm.hpp"
 
@@ -74,6 +74,9 @@ using ps_window::key_codes;
 #define OBJECT_MODELS_NAME objectModels
 #define OBJECT_COLLIDERS_NAME collidersForModels
 #include "object_models_colliders"
+
+#define ICON_NAME iconData
+#include "icon"
 
 
 // very simple implementation of (virtual)input handler 
@@ -351,6 +354,7 @@ struct Game {
         window.userLmbDownCallback = &lmbDown;
         window.userLmbUpCallback = &lmbUp;
         window.userMouseWheelCallback = &mouseWheel;
+        window.set_icon(ICON_WIDTH, ICON_HEIGHT, (const char*)iconData, true);
 
         render. start_record().
 
@@ -766,10 +770,6 @@ struct Game {
             } else if (i->type == OBJECT_TYPE_MOTHER) {
                 if ((gameObjects.size() - gameObjects.get_free_cells().size()) > SPAWNED_OBJECTS_LIMIT)
                     continue;
-                if (i->timer2 > MOTHER_LIFETIME) {
-                    destroy_object(*i);
-                    continue;
-                }
 
                 while (i->timer1 > MOTHER_SPAWN_DELTA) {
                     const float radians = ((float)rand() / (float)RAND_MAX) * (PERSHIT_FPI * 2.0f);
@@ -787,6 +787,10 @@ struct Game {
                         i = &gameObjects[index];            // указатель на объект останется валидным
                     }
                     i->timer1 -= MOTHER_SPAWN_DELTA;
+                }
+                if (i->timer2 > MOTHER_LIFETIME) {
+                    destroy_object(*i);
+                    continue;
                 }
                 i->timer1 += ts;
                 i->timer2 += ts;
