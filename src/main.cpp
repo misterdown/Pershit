@@ -53,16 +53,19 @@
 
 #define PERSHIT_FPI 3.141592654f
 
+#define PERSHIT_GAME_DATA_FILE_PATH "data/pershit_data.dt"
+
 using namespace wirender;
 using namespace ps_window;
 using namespace sgjk;
 using namespace glm;
 using std::ios;
+using std::fstream;
 using glm::sin;
 using glm::cos;
 using glm::abs;
 using sv::sparse_vector;
-using std::stack;
+using std::string;
 using std::vector;
 using ps_window::key_codes;
 
@@ -156,8 +159,8 @@ struct input_state {
 
 };
 
-vector<unsigned char> readBinary(const std::string& path) {
-    std::fstream file(path, ios::binary | ios::out | ios::in);
+vector<unsigned char> readBinary(const string& path) {
+    fstream file(path, ios::binary | ios::out | ios::in);
     if (!file.is_open()) {
         std::cerr << "failed to open " << path << " file";
         exit(1);
@@ -515,6 +518,8 @@ struct Game {
             cameraInfo.scale -= ts * (float)input.get_scroll_delta(); 
             cameraInfo.scale = clamp(cameraInfo.scale, vec2(0.5f), vec2(2.0f));
             print_number_in_world((int)(sceneState.totalInTurnElapsed * 1000), vec2(-0.95f, -0.85f) * cameraInfo.scale + cameraInfo.position, vec2(0.05f) * cameraInfo.scale);
+        } else if (sceneState.type == SCENE_TYPE_MENU) {
+            print_number_in_world(get_max_score(), vec2(-0.95f, -0.85f) * cameraInfo.scale + cameraInfo.position, vec2(0.05f) * cameraInfo.scale);
         }
 
         for (auto& i : gameObjects) {
@@ -551,6 +556,20 @@ struct Game {
             
             put_on_batch(get_model_id(objType), get_model_verteces_count(objType), modelTransform);
         }
+    }
+    void set_max_score(int score) const {
+        fstream scoreStream(PERSHIT_GAME_DATA_FILE_PATH, ios::out);
+        if (!scoreStream.is_open())
+            return;
+        scoreStream << score;
+    }
+    int get_max_score() const {
+        fstream scoreStream(PERSHIT_GAME_DATA_FILE_PATH, ios::in);
+        if (!scoreStream.is_open())
+            return 0;
+        int result;
+        scoreStream >> result;
+        return result;
     }
     vec2 murmuration(const object& currentObject) const {
         constexpr float neighborDistance = 0.2f;
@@ -683,6 +702,10 @@ struct Game {
         }
 
         if (playerIndex == ~0ull) {
+            const int score = (int)(sceneState.totalInTurnElapsed * 1000);
+            if (score > get_max_score()) {
+                set_max_score(score);
+            }
             clear_scene();
             initialize_scene_state_menu();
             return;
