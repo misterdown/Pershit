@@ -317,7 +317,7 @@ struct Game {
 
     public:
     Game() :
-        window("game", CREATE_WINDOW_FLAGS_BITS_MENU, 0, 0, 1200, 1200),
+        window("game", CREATE_WINDOW_FLAGS_BITS_MENU | CREATE_WINDOW_FLAGS_BITS_RESIZABLE, 0, 0, 1200, 1200),
         render({window.get_handles().hwnd, window.get_handles().hInstance}, true),
         objectsVertexCode(readBinary("./assets/shaders/vertexDefault.spirv")),
         objectsFragmentCode(readBinary("./assets/shaders/fragmentDefault.spirv")),
@@ -331,8 +331,8 @@ struct Game {
             add_stage(shader_stage{.codeSize = static_cast<uint32_t>(objectsVertexCode.size()), .code = (uint32_t*)objectsVertexCode.data(), .stage = VK_SHADER_STAGE_VERTEX_BIT}).
             add_stage(shader_stage{.codeSize = static_cast<uint32_t>(objectsFragmentCode.size()), .code = (uint32_t*)objectsFragmentCode.data(), .stage = VK_SHADER_STAGE_FRAGMENT_BIT}).
             set_clear_screen(false).
-            pop_dynamic_state(). // pop scissor and viewport
-            pop_dynamic_state().
+            // pop_dynamic_state(). // pop scissor and viewport
+            // pop_dynamic_state().
             build()),
         cellBoardShader(
             shader_builder(&render).
@@ -342,8 +342,8 @@ struct Game {
             add_stage(shader_stage{.codeSize = static_cast<uint32_t>(cellBoardVertexCode.size()), .code = (uint32_t*)cellBoardVertexCode.data(), .stage = VK_SHADER_STAGE_VERTEX_BIT}).
             add_stage(shader_stage{.codeSize = static_cast<uint32_t>(cellBoardFragmentCode.size()), .code = (uint32_t*)cellBoardFragmentCode.data(), .stage = VK_SHADER_STAGE_FRAGMENT_BIT}).
             set_clear_screen(true).
-            pop_dynamic_state(). // pop scissor and viewport
-            pop_dynamic_state().
+            // pop_dynamic_state(). // pop scissor and viewport
+            // pop_dynamic_state().
             build()),
         objectsBuffer(&render, buffer_create_info{.size = sizeof(vec2) * MAX_VERTEX_COUNT, .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT }),
         cellBoardBuffer(&render, buffer_create_info{.size = sizeof(vec2) * 6, .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT }),
@@ -357,6 +357,7 @@ struct Game {
         window.userLmbDownCallback = &lmbDown;
         window.userLmbUpCallback = &lmbUp;
         window.userMouseWheelCallback = &mouseWheel;
+        window.userResizeCallback = &resizeWn;
         window.set_icon(ICON_WIDTH, ICON_HEIGHT, (const char*)iconData, true);
 
         render. start_record().
@@ -364,12 +365,16 @@ struct Game {
                 set_shader(cellBoardShader.get_state()).
                 bind_buffer(cellBoardBuffer.get_state()).
                 record_start_render().
-                record_draw_verteces(6, 0, 1).
+                record_update_scissor().
+                // record_update_viewport().
+                // record_draw_verteces(6, 0, 1).
                 record_end_render().
 
                 bind_buffer(objectsBuffer.get_state()).
                 set_shader(objectsShader.get_state()).
                 record_start_render().
+                // record_update_scissor().
+                // record_update_viewport().
                 record_draw_verteces(MAX_VERTEX_COUNT, 0, 1).
                 record_end_render().
 
@@ -992,6 +997,11 @@ struct Game {
     }
 
     private:
+    static void resizeWn(deafult_window* window, int w, int h) {
+        (void)w;
+        (void)h;
+        ((Game*)window->userPointer)->render.resize();
+    }
     static void lmbDown(deafult_window* window, int x, int y) {
         (void)x;
         (void)y;

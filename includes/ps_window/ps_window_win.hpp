@@ -312,8 +312,9 @@ namespace ps_window {
                     if (me == nullptr)
                         break;
 
+                    const LRESULT result = DefWindowProcA(hWnd, Msg, wParam, lParam);
                     me->key_resize_callback(LOWORD(lParam), HIWORD(lParam));
-                    break;
+                    return result;
                 }
                 case WM_MOUSEWHEEL: {
                     deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
