@@ -81,7 +81,6 @@ using ps_window::key_codes;
 #define ICON_NAME iconData
 #include "icon"
 
-
 // very simple implementation of (virtual)input handler 
 struct input_state {
     private:
@@ -366,15 +365,15 @@ struct Game {
                 bind_buffer(cellBoardBuffer.get_state()).
                 record_start_render().
                 record_update_scissor().
-                // record_update_viewport().
-                // record_draw_verteces(6, 0, 1).
+                record_update_viewport().
+                record_draw_verteces(6, 0, 1).
                 record_end_render().
 
                 bind_buffer(objectsBuffer.get_state()).
                 set_shader(objectsShader.get_state()).
                 record_start_render().
-                // record_update_scissor().
-                // record_update_viewport().
+                record_update_scissor().
+                record_update_viewport().
                 record_draw_verteces(MAX_VERTEX_COUNT, 0, 1).
                 record_end_render().
 
@@ -512,9 +511,10 @@ struct Game {
         clear_bacth();
 
         camera_info& cameraInfo = sceneState.cameraInfo;
+        const camera_info scaledCamera = get_window_scaled_camera_info();
 
-        (*reinterpret_cast<camera_info*>(objectsShader.get_uniform_buffer_memory_on_binding(0))) = cameraInfo;
-        (*reinterpret_cast<camera_info*>(cellBoardShader.get_uniform_buffer_memory_on_binding(0))) = cameraInfo;
+        (*reinterpret_cast<camera_info*>(objectsShader.get_uniform_buffer_memory_on_binding(0))) = scaledCamera;
+        (*reinterpret_cast<camera_info*>(cellBoardShader.get_uniform_buffer_memory_on_binding(0))) = scaledCamera;
         (*reinterpret_cast<vec2*>(objectsShader.get_uniform_buffer_memory_on_binding(1))) = get_cursor_position_in_game_world();
 
         auto& gameObjects = sceneState.gameObjects;
@@ -522,9 +522,9 @@ struct Game {
         if (sceneState.type == SCENE_TYPE_BATTLE) {
             cameraInfo.scale -= ts * (float)input.get_scroll_delta(); 
             cameraInfo.scale = clamp(cameraInfo.scale, vec2(0.5f), vec2(2.0f));
-            print_number_in_world((int)(sceneState.totalInTurnElapsed * 1000), vec2(-0.95f, -0.85f) * cameraInfo.scale + cameraInfo.position, vec2(0.05f) * cameraInfo.scale);
+            print_number_in_world((int)(sceneState.totalInTurnElapsed * 1000), vec2(-0.95f, -0.85f) * scaledCamera.scale + scaledCamera.position, vec2(0.05f) * cameraInfo.scale);
         } else if (sceneState.type == SCENE_TYPE_MENU) {
-            print_number_in_world(get_max_score(), vec2(-0.95f, -0.85f) * cameraInfo.scale + cameraInfo.position, vec2(0.05f) * cameraInfo.scale);
+            print_number_in_world(get_max_score(), vec2(-0.95f, -0.85f) * scaledCamera.scale + scaledCamera.position, vec2(0.05f) * cameraInfo.scale);
         }
 
         for (auto& i : gameObjects) {
@@ -915,7 +915,11 @@ struct Game {
 
     public:
     vec2 get_cursor_position_in_game_world() const {
-        return vec2((float)window.get_mouse_x() / (float)window.get_window_extent_x() - 0.5f, (float)window.get_mouse_y() / (float)window.get_window_extent_y() - 0.5f) * 2.0f * sceneState.cameraInfo.scale + sceneState.cameraInfo.position;
+        const camera_info camera = get_window_scaled_camera_info();
+        return vec2((float)window.get_mouse_x() / (float)window.get_window_extent_x() - 0.5f, (float)window.get_mouse_y() / (float)window.get_window_extent_y() - 0.5f) * 2.0f * camera.scale + camera.position;
+    }
+    camera_info get_window_scaled_camera_info() const {
+        return camera_info(sceneState.cameraInfo.position, vec2(sceneState.cameraInfo.scale.x / ((float)window.get_window_extent_y() / (float)window.get_window_extent_x()), sceneState.cameraInfo.scale.y));
     }
     void add_object(object&& obj) {
         auto& gameObjects = sceneState.gameObjects;

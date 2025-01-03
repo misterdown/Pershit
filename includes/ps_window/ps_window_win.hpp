@@ -234,9 +234,10 @@ namespace ps_window {
     class deafult_window {
         private:
         static LRESULT WINAPI mysypurproc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
+            const LRESULT result = DefWindowProcA(hWnd, Msg, wParam, lParam);
             switch (Msg) {
                 case WM_DESTROY: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
@@ -244,7 +245,7 @@ namespace ps_window {
                     break;
                 }
                 case WM_KEYDOWN: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
@@ -252,7 +253,7 @@ namespace ps_window {
                     break;
                 }
                 case WM_KEYUP: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
@@ -260,7 +261,7 @@ namespace ps_window {
                     break;
                 }
                 case WM_LBUTTONDOWN: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
@@ -268,7 +269,7 @@ namespace ps_window {
                     break;
                 }
                 case WM_LBUTTONUP: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
@@ -276,7 +277,7 @@ namespace ps_window {
                     break;
                 }
                 case WM_RBUTTONDOWN: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
@@ -284,7 +285,7 @@ namespace ps_window {
                     break;
                 }
                 case WM_RBUTTONUP: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
@@ -292,7 +293,7 @@ namespace ps_window {
                     break;
                 }
                 case WM_MOUSEMOVE: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
@@ -300,7 +301,7 @@ namespace ps_window {
                     break;
                 }
                 case WM_MOVE: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
@@ -308,23 +309,23 @@ namespace ps_window {
                     break;
                 }
                 case WM_SIZE: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
 
-                    const LRESULT result = DefWindowProcA(hWnd, Msg, wParam, lParam);
                     me->key_resize_callback(LOWORD(lParam), HIWORD(lParam));
-                    return result;
+                    break;
                 }
                 case WM_MOUSEWHEEL: {
-                    deafult_window* me = (deafult_window*)(void*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+                    deafult_window* me = reinterpret_cast<deafult_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
                     if (me == nullptr)
                         break;
+
                     me->mouse_wheel_callback(GET_WHEEL_DELTA_WPARAM(wParam) / 120);
                     break;
                 }
             }
-            return DefWindowProcA(hWnd, Msg, wParam, lParam);
+            return result;
         }
         private:
         windows_handles handles_;

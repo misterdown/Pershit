@@ -288,6 +288,7 @@ render_manager& render_manager::record_draw_verteces(uint32_t vertexCount, uint3
     }
     if ((swapchainSupportInfo.extent.width == 0) || (swapchainSupportInfo.extent.height == 0))
         return *this;
+
     for (uint32_t i = 0; i < swapchainImages.imageCount; ++i) {
         const VkDeviceSize offsets[] {
             offset,
@@ -988,7 +989,7 @@ uint16_t getWordCount(uint32_t word) {
     VkDeviceSize totalBufferSize = 0;
     for (uint32_t i = 0; i < RENDER_UNIFORM_BUFFER_MAX_COUNT; ++i)
         totalBufferSize += result.buffers[i].size;
-    totalBufferSize = totalBufferSize;
+    
     const VkMemoryAllocateInfo allocationInfo {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .pNext = nullptr,
@@ -1647,7 +1648,6 @@ void RenderVulkanUtils::analyze_spirv(const uint32_t* code, uint32_t codeSize, V
 
         if (opcode == 19/*OpTypeVoid*/) {
             const uint32_t structId = code[currentOffset + 1];
-            (void)declarations[structId];
             declarations[structId].opType = opcode;
 
         } else if (opcode == 20/*OpTypeBool*/) {
@@ -1688,7 +1688,7 @@ void RenderVulkanUtils::analyze_spirv(const uint32_t* code, uint32_t codeSize, V
 
         } else if (opcode == 30/*OpTypeStruct*/) {
             const uint32_t structId = code[currentOffset + 1];
-            auto& structDec = declarations[structId];// = { .binding = 0, .descriptorSet = 0, .size = 0, .isUniform = false };
+            auto& structDec = declarations[structId];
             structDec.opType = opcode;
             for (uint32_t i = 2; i < length; ++i)
                 structDec.size += declarations.at(code[currentOffset + i]).size;
