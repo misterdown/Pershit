@@ -366,15 +366,15 @@ struct Game {
                 bind_buffer(cellBoardBuffer.get_state()).
                 record_start_render().
                 record_update_scissor().
-                // record_update_viewport().
-                // record_draw_verteces(6, 0, 1).
+                record_update_viewport().
+                record_draw_verteces(6, 0, 1).
                 record_end_render().
 
                 bind_buffer(objectsBuffer.get_state()).
                 set_shader(objectsShader.get_state()).
                 record_start_render().
-                // record_update_scissor().
-                // record_update_viewport().
+                record_update_scissor().
+                record_update_viewport().
                 record_draw_verteces(MAX_VERTEX_COUNT, 0, 1).
                 record_end_render().
 
